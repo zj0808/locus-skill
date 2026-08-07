@@ -25,8 +25,10 @@ npx skills add zj0808/locus-skill -g -a codex -s locus-code-search -y
 Set-Location "$HOME\.agents\skills\locus-code-search"
 
 # 可选：目录级零配置
-# 将 skills/locus-code-search/.env.example 复制为 .env，填入服务地址和 Key
-# 配置完成后无需登录，直接使用 .\locus search
+# .env.example 只是模板，不能直接使用；复制并改名为 .env
+Copy-Item .env.example .env
+# 然后编辑 .env，填入服务地址和 Key；配置完成后无需登录
+# 直接使用 .\locus search
 
 # 或使用浏览器授权
 .\locus auth login
@@ -35,7 +37,7 @@ Set-Location "$HOME\.agents\skills\locus-code-search"
 .\locus auth status
 ```
 
-目录级 `.env` 配置示例：
+目录级 `.env` 配置示例（程序只读取 `.env`，不读取 `.env.example`）：
 
 ```dotenv
 LOCUS_BASE_URL=https://HOST/relay
@@ -57,8 +59,9 @@ LOCUS_API_KEY=TOKEN
 .\locus auth logout
 ```
 
-`.env` 包含真实 Key 时不要提交到 Git。要做零配置分发包，可将填写好的
-`.env` 与 Skill 目录一起私下分发；公开仓库只提供 `.env.example`。
+`.env.example` 仅是公开模板，不能替代 `.env`。`.env` 包含真实 Key 时不要提交到
+Git。要做零配置分发包，可将填写好的 `.env` 与 Skill 目录一起私下分发；公开仓库只
+提供 `.env.example`。
 
 ## 使用
 

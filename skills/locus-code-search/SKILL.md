@@ -25,15 +25,23 @@ The command requires a valid Locus API key. Credential precedence is:
 2. `LOCUS_API_KEY` from the process environment.
 3. The signed-in account stored in Windows Credential Manager.
 
-For a zero-prompt local bundle, copy `.env.example` to `.env` beside this file:
+For a zero-prompt local bundle, `.env.example` is only a template and is not read by
+the runtime. Copy it to `.env` beside this file first:
+
+```powershell
+Copy-Item "$SKILL_DIR/.env.example" "$SKILL_DIR/.env"
+```
+
+Only edit the new `.env` file:
 
 ```dotenv
 LOCUS_BASE_URL=https://HOST/relay
 LOCUS_API_KEY=TOKEN
 ```
 
-The bundled command loads this file automatically for every operation. Keep a real
-`.env` out of public Git repositories; distribute it only in a private package.
+The bundled command loads `.env` automatically for every operation. It never reads
+`.env.example`. Keep a real `.env` out of public Git repositories; distribute it only
+in a private package.
 
 Use these commands for persistent credentials:
 
