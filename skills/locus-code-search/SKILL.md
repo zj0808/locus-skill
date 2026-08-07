@@ -9,42 +9,42 @@ This Skill executes the bundled Locus retrieval runtime directly. It is a capabi
 
 ## Entry Point
 
-Resolve the directory containing this `SKILL.md` as `SKILL_DIR`. Run every operation through:
+Resolve the directory containing this `SKILL.md` as `SKILL_DIR`. Run every operation through the bundled `locus` command:
 
 ```powershell
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" <command> [options]
+& "$SKILL_DIR/locus" <command> [options]
 ```
 
 Never import files under `runtime/` directly. The wrapper enforces authentication before search, index creation, refresh, or status inspection.
 
 ## Authentication
 
-The command requires a valid ACE key. Credential precedence is:
+The command requires a valid Locus API key. Credential precedence is:
 
-1. `ACE_API_KEY` environment variable for CI or a temporary override.
-2. Windows Credential Manager target `Ace.Locus.ApiKey` for persistent login.
+1. The signed-in account stored in Windows Credential Manager.
+2. A temporary environment or command-line override for CI, when supported by the runtime.
 
 Use these commands for persistent credentials:
 
 ```powershell
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth login
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth set-key
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth status
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth logout
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth doctor
+& "$SKILL_DIR/locus" auth login
+& "$SKILL_DIR/locus" auth set-key
+& "$SKILL_DIR/locus" auth status
+& "$SKILL_DIR/locus" auth logout
+& "$SKILL_DIR/locus" auth doctor
 ```
 
-Treat the PowerShell entry point as an internal implementation detail. When the user asks to configure, log in, or update authentication, run:
+Treat the bundled command as the public entry point. When the user asks to configure, log in, or update authentication, run:
 
 ```powershell
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth launch
+& "$SKILL_DIR/locus" auth login
 ```
 
-This opens a separate login window and the ACE website. Tell the user to finish browser sign-in, then retry the requested operation. The Skill receives a short-lived authorization code on `127.0.0.1`, exchanges it with PKCE, and stores the signed-in account's key in Windows Credential Manager. Do not ask the user to paste a key into the agent conversation.
+This opens the Locus sign-in page. Tell the user to finish browser sign-in, then retry the requested operation. The Skill receives a short-lived authorization code on `127.0.0.1`, exchanges it with PKCE, and stores the signed-in account's key in Windows Credential Manager. Do not ask the user to paste a key into the agent conversation.
 
 Require Windows x64, PowerShell 7, and Node.js 18 or newer. `auth login` uses browser authorization. `auth set-key` is the manual fallback and securely prompts for a key without opening a browser. `auth doctor` verifies that the bundled native credential adapter can round-trip a temporary value. The Node entry point performs all Credential Manager access, including under PowerShell `ConstrainedLanguage` mode.
 
-Do not place keys in prompts, source files, config files, command output, or search arguments. Use `--key` only for non-interactive automation when command-line exposure is acceptable; prefer `ACE_API_KEY` for CI.
+Do not place keys in prompts, source files, config files, command output, or search arguments. Use `--key` only for non-interactive automation when command-line exposure is acceptable.
 
 ### Windows terminal setup
 
@@ -63,11 +63,11 @@ opens browser authorization and saves the signed-in account key in Windows
 Credential Manager. Do not paste the key into the terminal transcript, this
 file, or an agent conversation.
 
-The non-secret relay URL is stored in `%APPDATA%\Ace\config.json`. The default is `https://ace.panrun.me/relay`; `ACE_BASE_URL` overrides it temporarily.
+The non-secret relay URL is stored in the Skill's local configuration. Use the `config` command only when a custom Locus endpoint is required.
 
 ```powershell
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" config set base-url "https://HOST/relay"
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" config get base-url
+& "$SKILL_DIR/locus" config set base-url "https://HOST/relay"
+& "$SKILL_DIR/locus" config get base-url
 ```
 
 When authentication is missing or rejected, stop the discovery operation and launch the authentication window once. Do not fall back to local-only Locus retrieval or another credential.
@@ -77,7 +77,7 @@ When authentication is missing or rejected, stop the discovery operation and lau
 Start with one descriptive natural-language query at the smallest plausible package root:
 
 ```powershell
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" search `
+& "$SKILL_DIR/locus" search `
   --query "function that validates user email and returns a boolean" `
   --project-path "backend" `
   --max-turns 2
@@ -106,8 +106,8 @@ Use `--max-turns 1` or `2` for simple discovery and `3` to `5` for cross-package
 Authentication is required for status and refresh:
 
 ```powershell
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" index-status --project-path "backend"
-pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" index-status --project-path "backend" --refresh
+& "$SKILL_DIR/locus" index-status --project-path "backend"
+& "$SKILL_DIR/locus" index-status --project-path "backend" --refresh
 ```
 
 The runtime snapshot is private to this Skill. Updating this Skill does not edit or load the repository's MCP server files.
