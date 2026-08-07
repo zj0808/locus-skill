@@ -44,18 +44,11 @@ This is a Codex-specific convenience. The terminal command above is the portable
 
 ### 2. Add your ACE API key
 
-On first use, the Skill reports the exact `auth login` command when no key is configured. Run that command once in PowerShell 7.
+Ask the installed agent:
 
-For a global Codex installation, the command is:
+> Use locus-code-search to set up authentication.
 
-```powershell
-$codexHome = $env:CODEX_HOME
-if (-not $codexHome) { $codexHome = Join-Path $env:USERPROFILE ".codex" }
-$skillDir = Join-Path $codexHome "skills\locus-code-search"
-pwsh -NoProfile -File "$skillDir\scripts\ace.ps1" auth login
-```
-
-For another agent, replace `$skillDir` with that agent's installed `locus-code-search` directory. The key is entered through a hidden prompt and stored in Windows Credential Manager. It is not written to the Skill or its config file.
+The Skill opens a separate login window. Enter the API key in that window; input is hidden and the key is stored in Windows Credential Manager. It is not written to the Skill or its config file. No PowerShell script command is required in the normal Agent workflow.
 
 ### 3. Search
 
@@ -84,9 +77,11 @@ npx skills remove locus-code-search -g
 
 ## Authentication details
 
+For standalone terminal administration, change to the installed Skill directory and use its `locus` command:
+
 ```powershell
-pwsh -NoProfile -File "$skillDir\scripts\ace.ps1" auth doctor
-pwsh -NoProfile -File "$skillDir\scripts\ace.ps1" auth status
+.\locus auth doctor
+.\locus auth status
 ```
 
 Persistent credentials are stored in Windows Credential Manager under service `Ace.Locus.ApiKey` and account `ACE`. The API key is not written to the Skill or its config file. `ACE_API_KEY` provides a temporary override for CI or the current process.
@@ -96,7 +91,7 @@ PowerShell `ConstrainedLanguage` is supported because credential access and hidd
 Remove the stored key with:
 
 ```powershell
-pwsh -NoProfile -File "$skillDir\scripts\ace.ps1" auth logout
+.\locus auth logout
 ```
 
 ## Standalone terminal use
@@ -106,13 +101,13 @@ An agent host is optional when calling the bundled command directly:
 ```powershell
 git clone https://github.com/zj0808/locus-skill.git
 Set-Location .\locus-skill\skills\locus-code-search
-pwsh -NoProfile -File ".\scripts\ace.ps1" auth login
+.\locus auth login
 ```
 
 Then run a search:
 
 ```powershell
-pwsh -NoProfile -File ".\scripts\ace.ps1" search `
+.\locus search `
   --query "function that validates session tokens" `
   --project-path "D:\path\to\project" `
   --max-turns 2

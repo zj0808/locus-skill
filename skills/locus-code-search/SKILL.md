@@ -1,6 +1,6 @@
 ---
 name: locus-code-search
-description: Run authenticated Locus semantic code search from this Skill's bundled runtime, without requiring an MCP server. Use automatically for code discovery when a file, symbol, implementation, subsystem, caller flow, dependency path, or cross-package behavior is unknown or must be found by meaning. Also use for Locus index status and refresh. Do not use for an already-known exact file or symbol, or for pure git, build, test, and formatting work.
+description: Run authenticated Locus semantic code search from this Skill's bundled runtime, without requiring an MCP server. Use automatically for code discovery when a file, symbol, implementation, subsystem, caller flow, dependency path, or cross-package behavior is unknown or must be found by meaning. Also use for Locus authentication setup, index status, and refresh. Do not use for an already-known exact file or symbol, or for pure git, build, test, and formatting work.
 ---
 
 # Locus Code Search
@@ -34,6 +34,14 @@ pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth logout
 pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth doctor
 ```
 
+Treat the PowerShell entry point as an internal implementation detail. When the user asks to configure, log in, or update authentication, run:
+
+```powershell
+pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth launch
+```
+
+This opens a separate interactive login window so the user can enter the key privately. Tell the user to finish authentication in that window, then retry the requested operation. Do not ask the user to paste a key into the agent conversation.
+
 Require Windows x64, PowerShell 7, and Node.js 18 or newer. `auth login` opens the ACE console and the Node entry point securely prompts for the key. `auth set-key` securely updates it without opening a browser. `auth doctor` verifies that the bundled native credential adapter can round-trip a temporary value. The Node entry point performs all Credential Manager access, including under PowerShell `ConstrainedLanguage` mode.
 
 Do not place keys in prompts, source files, config files, command output, or search arguments. Use `--key` only for non-interactive automation when command-line exposure is acceptable; prefer `ACE_API_KEY` for CI.
@@ -45,7 +53,7 @@ pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" config set base-url "https://H
 pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" config get base-url
 ```
 
-When authentication is missing or rejected, stop the discovery operation and report the exact `auth login` command. Do not fall back to local-only Locus retrieval or another credential.
+When authentication is missing or rejected, stop the discovery operation and launch the authentication window once. Do not fall back to local-only Locus retrieval or another credential.
 
 ## Search
 

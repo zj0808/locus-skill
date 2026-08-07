@@ -185,7 +185,7 @@ function resolveBaseUrl() {
 
 async function validateCredential(baseUrl, key) {
   if (!key) {
-    const error = new Error("ACE authentication is required. Run: ace.ps1 auth login");
+    const error = new Error("ACE authentication is required. Run the Locus authentication setup.");
     error.exitCode = 2;
     throw error;
   }
@@ -215,7 +215,7 @@ async function validateCredential(baseUrl, key) {
 
   await response.body?.cancel().catch(() => {});
   if (response.status === 401) {
-    const error = new Error("ACE API key was rejected. Run: ace.ps1 auth set-key");
+    const error = new Error("ACE API key was rejected. Run the Locus authentication setup again.");
     error.exitCode = 4;
     throw error;
   }
@@ -279,11 +279,11 @@ async function main() {
   if (!credential) {
     if (command === "auth-status") {
       console.log("Authenticated: no");
-      console.log("Run: ace.ps1 auth login");
+      console.log("Run the Locus authentication setup.");
       process.exitCode = 1;
       return;
     }
-    const error = new Error("ACE authentication is required. Run: ace.ps1 auth login");
+    const error = new Error("ACE authentication is required. Run the Locus authentication setup.");
     error.exitCode = 2;
     throw error;
   }
@@ -351,6 +351,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  process.stderr.write(`[ace] ${error?.message || error}\n`);
+  process.stderr.write(`[locus] ${error?.message || error}\n`);
   process.exitCode = Number.isInteger(error?.exitCode) ? error.exitCode : 1;
 });

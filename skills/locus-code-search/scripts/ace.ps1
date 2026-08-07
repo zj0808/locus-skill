@@ -19,7 +19,7 @@ function Read-AceConfig {
         }
         return @{ baseUrl = $baseUrl }
     } catch {
-        throw "Invalid ACE config at $script:ConfigPath. Run: ace.ps1 config set base-url URL"
+        throw "Invalid ACE config at $script:ConfigPath. Run: locus config set base-url URL"
     }
 }
 
@@ -68,18 +68,19 @@ function Invoke-AceNode([string[]]$NodeArguments, [string]$BaseUrl) {
 
 function Show-Help {
     @"
-ACE Locus Skill
+Locus Code Search
 
 Usage:
-  ace.ps1 search --query TEXT [--project-path PATH] [search options]
-  ace.ps1 index-status [--project-path PATH] [--refresh]
-  ace.ps1 auth login [--no-browser]
-  ace.ps1 auth set-key [--key KEY]
-  ace.ps1 auth status
-  ace.ps1 auth logout
-  ace.ps1 auth doctor
-  ace.ps1 config set base-url URL
-  ace.ps1 config get base-url
+  locus search --query TEXT [--project-path PATH] [search options]
+  locus index-status [--project-path PATH] [--refresh]
+  locus auth launch
+  locus auth login [--no-browser]
+  locus auth set-key [--key KEY]
+  locus auth status
+  locus auth logout
+  locus auth doctor
+  locus config set base-url URL
+  locus config get base-url
 
 Environment:
   ACE_API_KEY   Temporary/CI key override
@@ -88,6 +89,14 @@ Environment:
 Requirements:
   Windows x64, PowerShell 7, and Node.js 18 or newer
 "@
+}
+
+function Open-LoginWindow {
+    $pwsh = @(Get-Command pwsh -CommandType Application -ErrorAction Stop)[0].Source
+    $loginScript = Join-Path $PSScriptRoot "login.ps1"
+    $quotedLoginScript = '"{0}"' -f $loginScript
+    Start-Process -FilePath $pwsh -ArgumentList @("-NoProfile", "-File", $quotedLoginScript) | Out-Null
+    Write-Output "Locus authentication window opened. Enter your ACE API key there."
 }
 
 $command = if ($args.Count -gt 0) { [string]$args[0] } else { "help" }
@@ -103,6 +112,10 @@ try {
                 if ($tail.Count -gt 1) { $tail[1..($tail.Count - 1)] }
             )
             switch ($subcommand) {
+                "launch" {
+                    Open-LoginWindow
+                    exit 0
+                }
                 "login" {
                     if (-not (Test-Option $authArgs "--no-browser")) {
                         $dashboard = (Get-AceBaseUrl) -replace "/relay$", ""
@@ -132,7 +145,7 @@ try {
             }
         }
         "config" {
-            if ($tail.Count -lt 2) { throw "Usage: ace.ps1 config get base-url | config set base-url URL" }
+            if ($tail.Count -lt 2) { throw "Usage: locus config get base-url | locus config set base-url URL" }
             $operation = ([string]$tail[0]).ToLowerInvariant()
             $name = ([string]$tail[1]).ToLowerInvariant()
             if ($name -ne "base-url") { throw "Unknown config key: $name" }
