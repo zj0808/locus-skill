@@ -4,16 +4,13 @@ An authenticated Codex Skill for semantic code discovery. It runs a bundled Locu
 
 The Skill requires the user's own ACE API key for search, index status, and index refresh. It never falls back to unauthenticated retrieval and does not modify an existing Locus MCP installation.
 
-## Requirements
+No package download or `npm install` is required.
 
-- Windows 10/11 x64
-- PowerShell 7 (`pwsh`)
-- Node.js 18 or newer
-- An ACE API key
+## Quick start
 
-## Install
+### 1. Install
 
-Ask Codex to install the Skill from:
+Paste this into Codex:
 
 ```text
 Use $skill-installer to install https://github.com/zj0808/locus-skill/tree/main/skills/locus-code-search
@@ -21,12 +18,36 @@ Use $skill-installer to install https://github.com/zj0808/locus-skill/tree/main/
 
 The Skill becomes available on the next Codex turn as `$locus-code-search`.
 
-## Authenticate
+### 2. Add your ACE API key
+
+Run this once in PowerShell 7:
 
 ```powershell
-$skillDir = "$env:USERPROFILE\.codex\skills\locus-code-search"
-pwsh -NoProfile -File "$skillDir\scripts\ace.ps1" auth doctor
+$codexHome = $env:CODEX_HOME
+if (-not $codexHome) { $codexHome = Join-Path $env:USERPROFILE ".codex" }
+$skillDir = Join-Path $codexHome "skills\locus-code-search"
 pwsh -NoProfile -File "$skillDir\scripts\ace.ps1" auth login
+```
+
+The key is entered through a hidden prompt and stored in Windows Credential Manager. It is not written to the Skill or its config file.
+
+### 3. Search
+
+```text
+Use $locus-code-search to find where session tokens are validated in this project.
+```
+
+## Requirements
+
+- Windows 10/11 x64
+- PowerShell 7 (`pwsh`)
+- Node.js 18 or newer
+- An ACE API key
+
+## Authentication details
+
+```powershell
+pwsh -NoProfile -File "$skillDir\scripts\ace.ps1" auth doctor
 pwsh -NoProfile -File "$skillDir\scripts\ace.ps1" auth status
 ```
 
@@ -40,13 +61,7 @@ Remove the stored key with:
 pwsh -NoProfile -File "$skillDir\scripts\ace.ps1" auth logout
 ```
 
-## Use
-
-Invoke it naturally from Codex:
-
-```text
-Use $locus-code-search to find where session tokens are validated in this project.
-```
+## Manual use
 
 Manual search is also available:
 
