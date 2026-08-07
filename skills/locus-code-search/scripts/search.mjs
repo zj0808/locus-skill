@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
-import { randomBytes } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createServer } from "node:http";
 import { createRequire } from "node:module";
 
 const AUTH_PROBE_PATH = "/exa.api_server_pb.ApiServerService/CheckUserMessageRateLimit";
 const AUTH_TIMEOUT_MS = 10000;
-const CREDENTIAL_SERVICE = "Ace.Locus.ApiKey";
+const CALLBACK_PATH = "/callback";
+const CREDENTIAL_SERVICE =
+  String(process.env.ACE_CREDENTIAL_SERVICE || "Ace.Locus.ApiKey").trim() ||
+  "Ace.Locus.ApiKey";
 const CREDENTIAL_ACCOUNT = "ACE";
 const require = createRequire(import.meta.url);
 
@@ -81,10 +86,16 @@ function promptHidden(promptText) {
           return;
         }
         if (character === "\u007f" || character === "\b") {
-          value = Array.from(value).slice(0, -1).join("");
+          if (value) {
+            value = Array.from(value).slice(0, -1).join("");
+            process.stdout.write("\b \b");
+          }
           continue;
         }
-        if (character >= " ") value += character;
+        if (character >= " ") {
+          value += character;
+          process.stdout.write("*");
+        }
       }
     };
 
@@ -229,12 +240,258 @@ async function validateCredential(baseUrl, key) {
   throw error;
 }
 
+function resolveAuthorizationBaseUrl(baseUrl) {
+  const url = new URL(baseUrl);
+  url.pathname = url.pathname.replace(/\/relay\/?$/, "") || "/";
+  url.search = "";
+  url.hash = "";
+  return url.href.replace(/\/$/, "");
+}
+
+function secureStringEquals(actual, expected) {
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return (
+    actualBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(actualBuffer, expectedBuffer)
+  );
+}
+
+function writeCallbackPage(response, statusCode, title, message, closeWindow = false) {
+  const nonce = randomBytes(16).toString("base64");
+  const closeScript = closeWindow
+    ? `<script nonce="${nonce}">setTimeout(() => window.close(), 1200);</script>`
+    : "";
+  const body = `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title}</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0a0f1a; color: #e2e8f0; }
+    main { width: min(420px, calc(100% - 32px)); padding: 28px; box-sizing: border-box; border: 1px solid #253044; border-radius: 8px; background: #0d1424; }
+    h1 { margin: 0 0 10px; font-size: 18px; font-weight: 600; }
+    p { margin: 0; color: #94a3b8; font-size: 14px; line-height: 1.6; }
+  </style>
+</head>
+<body><main><h1>${title}</h1><p>${message}</p></main>${closeScript}</body>
+</html>`;
+  response.writeHead(statusCode, {
+    "Cache-Control": "no-store",
+    "Content-Type": "text/html; charset=utf-8",
+    "Content-Security-Policy": `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; base-uri 'none'; frame-ancestors 'none'`,
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+  });
+  response.end(body);
+}
+
+async function startAuthorizationCallback(expectedState, timeoutMs) {
+  let resolveCode;
+  let rejectCode;
+  let settled = false;
+  const codePromise = new Promise((resolve, reject) => {
+    resolveCode = resolve;
+    rejectCode = reject;
+  });
+  codePromise.catch(() => {});
+
+  const settle = (handler, value) => {
+    if (settled) return;
+    settled = true;
+    handler(value);
+  };
+
+  const server = createServer((request, response) => {
+    if (request.method !== "GET") {
+      response.writeHead(405, { Allow: "GET", "Cache-Control": "no-store" });
+      response.end();
+      return;
+    }
+
+    let requestUrl;
+    try {
+      requestUrl = new URL(request.url || "/", "http://127.0.0.1");
+    } catch {
+      response.writeHead(400, { "Cache-Control": "no-store" });
+      response.end();
+      return;
+    }
+    if (requestUrl.pathname !== CALLBACK_PATH) {
+      response.writeHead(404, { "Cache-Control": "no-store" });
+      response.end();
+      return;
+    }
+
+    const returnedState = requestUrl.searchParams.get("state") || "";
+    if (!secureStringEquals(returnedState, expectedState)) {
+      writeCallbackPage(response, 400, "授权请求无效", "请返回终端重新发起登录。", false);
+      return;
+    }
+
+    const authorizationError = requestUrl.searchParams.get("error");
+    if (authorizationError) {
+      const error = new Error("ACE browser authorization was cancelled or rejected.");
+      error.exitCode = 6;
+      writeCallbackPage(response, 400, "授权未完成", "请返回终端重试。", false);
+      settle(rejectCode, error);
+      return;
+    }
+
+    const code = requestUrl.searchParams.get("code") || "";
+    if (!/^[A-Za-z0-9_-]{43}$/.test(code)) {
+      const error = new Error("ACE browser authorization returned an invalid code.");
+      error.exitCode = 6;
+      writeCallbackPage(response, 400, "授权请求无效", "请返回终端重新发起登录。", false);
+      settle(rejectCode, error);
+      return;
+    }
+
+    writeCallbackPage(response, 200, "授权成功", "凭据已发送到 Locus，可以关闭此页面。", true);
+    settle(resolveCode, code);
+  });
+
+  await new Promise((resolve, reject) => {
+    const onError = (error) => reject(error);
+    server.once("error", onError);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", onError);
+      resolve();
+    });
+  });
+  server.on("error", (error) => settle(rejectCode, error));
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    server.close();
+    throw new Error("Failed to start the local authorization callback.");
+  }
+
+  const timeout = setTimeout(() => {
+    const error = new Error("ACE browser authorization timed out.");
+    error.exitCode = 6;
+    settle(rejectCode, error);
+  }, timeoutMs);
+
+  return {
+    redirectUri: `http://127.0.0.1:${address.port}${CALLBACK_PATH}`,
+    async waitForCode() {
+      try {
+        return await codePromise;
+      } finally {
+        clearTimeout(timeout);
+        await new Promise((resolve) => server.close(resolve));
+      }
+    },
+    async close() {
+      clearTimeout(timeout);
+      if (!server.listening) return;
+      await new Promise((resolve) => server.close(resolve));
+    },
+  };
+}
+
+function openBrowser(url) {
+  let command;
+  let commandArgs;
+  if (process.platform === "win32") {
+    command = "rundll32.exe";
+    commandArgs = ["url.dll,FileProtocolHandler", url];
+  } else if (process.platform === "darwin") {
+    command = "open";
+    commandArgs = [url];
+  } else {
+    command = "xdg-open";
+    commandArgs = [url];
+  }
+
+  const result = spawnSync(command, commandArgs, {
+    stdio: "ignore",
+    windowsHide: true,
+    timeout: 10000,
+  });
+  if (result.error || result.status !== 0) {
+    throw new Error(`Could not open the browser automatically. Open this URL manually:\n${url}`);
+  }
+}
+
+async function exchangeAuthorizationCode(authBaseUrl, redirectUri, code, verifier) {
+  let response;
+  try {
+    response = await fetch(`${authBaseUrl}/api/cli/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, codeVerifier: verifier, redirectUri }),
+      signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
+    });
+  } catch (cause) {
+    const error = new Error(`ACE token exchange failed: ${cause?.message || cause}`);
+    error.exitCode = 3;
+    throw error;
+  }
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(`ACE token exchange returned HTTP ${response.status}.`);
+    error.exitCode = response.status >= 500 ? 3 : 6;
+    throw error;
+  }
+  if (typeof result.apiKey !== "string" || !result.apiKey.trim()) {
+    const error = new Error("ACE token exchange did not return an API key.");
+    error.exitCode = 6;
+    throw error;
+  }
+  return result.apiKey.trim();
+}
+
+async function authenticateWithBrowser(baseUrl, args) {
+  const authBaseUrl = resolveAuthorizationBaseUrl(baseUrl);
+  const state = randomBytes(32).toString("base64url");
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  const callback = await startAuthorizationCallback(
+    state,
+    integerEnvironment("ACE_AUTH_TIMEOUT_MS", 5 * 60 * 1000, 1000, 15 * 60 * 1000),
+  );
+
+  const authorizationUrl = new URL(`${authBaseUrl}/cli/authorize`);
+  authorizationUrl.searchParams.set("redirect_uri", callback.redirectUri);
+  authorizationUrl.searchParams.set("state", state);
+  authorizationUrl.searchParams.set("code_challenge", challenge);
+  authorizationUrl.searchParams.set("code_challenge_method", "S256");
+
+  try {
+    if (booleanOption(args, "no-browser", false)) {
+      console.log(`Open this URL to sign in:\n${authorizationUrl.href}`);
+    } else {
+      openBrowser(authorizationUrl.href);
+      console.log("Browser opened for ACE sign-in.");
+    }
+    console.log("Waiting for browser authorization...");
+
+    const code = await callback.waitForCode();
+    const key = await exchangeAuthorizationCode(
+      authBaseUrl,
+      callback.redirectUri,
+      code,
+      verifier,
+    );
+    await validateCredential(baseUrl, key);
+    credentialEntry().setPassword(key);
+    console.log("ACE account connected. Key saved in Windows Credential Manager.");
+  } finally {
+    await callback.close();
+  }
+}
+
 async function main() {
   const command = process.argv[2] || "help";
   const args = parseArgs(process.argv.slice(3));
   const baseUrl = resolveBaseUrl();
 
-  if (!["validate", "search", "index-status", "auth-set", "auth-status", "auth-logout", "auth-doctor"].includes(command)) {
+  if (!["validate", "search", "index-status", "auth-browser", "auth-set", "auth-status", "auth-logout", "auth-doctor"].includes(command)) {
     throw new Error(`Unknown runtime command: ${command}`);
   }
 
@@ -265,14 +522,39 @@ async function main() {
     return;
   }
 
+  if (command === "auth-browser") {
+    await authenticateWithBrowser(baseUrl, args);
+    return;
+  }
+
   if (command === "auth-set") {
     const supplied = stringOption(args, "key");
-    const key = supplied || await promptHidden("ACE API key: ");
-    if (!key) throw new Error("ACE API key is empty.");
-    await validateCredential(baseUrl, key);
-    credentialEntry().setPassword(key);
-    console.log("ACE key saved in Windows Credential Manager.");
-    return;
+    if (supplied) {
+      await validateCredential(baseUrl, supplied);
+      credentialEntry().setPassword(supplied);
+      console.log("ACE key saved in Windows Credential Manager.");
+      return;
+    }
+
+    console.log("Paste your ACE API key below. Asterisks confirm input; press Enter once.");
+    console.log("Press Ctrl+C to cancel.");
+    while (true) {
+      const key = await promptHidden("ACE API key: ");
+      if (!key) {
+        console.log("No key entered. Paste your ACE API key, then press Enter.");
+        continue;
+      }
+      try {
+        await validateCredential(baseUrl, key);
+        credentialEntry().setPassword(key);
+        console.log("ACE key saved in Windows Credential Manager.");
+        return;
+      } catch (error) {
+        if (error?.exitCode !== 4) throw error;
+        console.error(`[locus] ${error.message}`);
+        console.log("Enter another ACE API key, or press Ctrl+C to cancel.");
+      }
+    }
   }
 
   const credential = resolveCredential();

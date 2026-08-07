@@ -40,9 +40,9 @@ Treat the PowerShell entry point as an internal implementation detail. When the 
 pwsh -NoProfile -File "SKILL_DIR/scripts/ace.ps1" auth launch
 ```
 
-This opens a separate interactive login window so the user can enter the key privately. Tell the user to finish authentication in that window, then retry the requested operation. Do not ask the user to paste a key into the agent conversation.
+This opens a separate login window and the ACE website. Tell the user to finish browser sign-in, then retry the requested operation. The Skill receives a short-lived authorization code on `127.0.0.1`, exchanges it with PKCE, and stores the signed-in account's key in Windows Credential Manager. Do not ask the user to paste a key into the agent conversation.
 
-Require Windows x64, PowerShell 7, and Node.js 18 or newer. `auth login` opens the ACE console and the Node entry point securely prompts for the key. `auth set-key` securely updates it without opening a browser. `auth doctor` verifies that the bundled native credential adapter can round-trip a temporary value. The Node entry point performs all Credential Manager access, including under PowerShell `ConstrainedLanguage` mode.
+Require Windows x64, PowerShell 7, and Node.js 18 or newer. `auth login` uses browser authorization. `auth set-key` is the manual fallback and securely prompts for a key without opening a browser. `auth doctor` verifies that the bundled native credential adapter can round-trip a temporary value. The Node entry point performs all Credential Manager access, including under PowerShell `ConstrainedLanguage` mode.
 
 Do not place keys in prompts, source files, config files, command output, or search arguments. Use `--key` only for non-interactive automation when command-line exposure is acceptable; prefer `ACE_API_KEY` for CI.
 

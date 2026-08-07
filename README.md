@@ -42,13 +42,13 @@ Use $skill-installer to install https://github.com/zj0808/locus-skill/tree/main/
 
 This is a Codex-specific convenience. The terminal command above is the portable installation method.
 
-### 2. Add your ACE API key
+### 2. Sign in to ACE
 
 Ask the installed agent:
 
 > Use locus-code-search to set up authentication.
 
-The Skill opens a separate login window. Enter the API key in that window; input is hidden and the key is stored in Windows Credential Manager. It is not written to the Skill or its config file. No PowerShell script command is required in the normal Agent workflow.
+The Skill opens the ACE website in the default browser. Sign in normally; the browser returns a short-lived authorization code to the Skill on `127.0.0.1`, and the Skill saves the account's API key in Windows Credential Manager. The key is never placed in the browser callback URL, the Skill, or its config file. No PowerShell script command is required in the normal Agent workflow.
 
 ### 3. Search
 
@@ -73,7 +73,7 @@ npx skills remove locus-code-search -g
 - Windows 10/11 x64
 - PowerShell 7 (`pwsh`)
 - Node.js 18 or newer
-- An ACE API key
+- An ACE account
 
 ## Authentication details
 
@@ -85,6 +85,12 @@ For standalone terminal administration, change to the installed Skill directory 
 ```
 
 Persistent credentials are stored in Windows Credential Manager under service `Ace.Locus.ApiKey` and account `ACE`. The API key is not written to the Skill or its config file. `ACE_API_KEY` provides a temporary override for CI or the current process.
+
+Browser login uses an authorization code with PKCE. The callback listens only on `127.0.0.1` at a random port and stops after login or timeout. For manual key entry, use:
+
+```powershell
+.\locus auth set-key
+```
 
 PowerShell `ConstrainedLanguage` is supported because credential access and hidden key input are handled by the bundled Node native adapter.
 

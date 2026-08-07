@@ -49,10 +49,6 @@ function Write-AceBaseUrl([string]$Value) {
     return $normalized
 }
 
-function Test-Option([string[]]$Values, [string]$Name) {
-    return $Values -contains $Name
-}
-
 function Invoke-AceNode([string[]]$NodeArguments, [string]$BaseUrl) {
     $node = (Get-Command node -CommandType Application -ErrorAction Stop).Source
     $oldBaseUrl = [Environment]::GetEnvironmentVariable("ACE_BASE_URL", "Process")
@@ -96,7 +92,7 @@ function Open-LoginWindow {
     $loginScript = Join-Path $PSScriptRoot "login.ps1"
     $quotedLoginScript = '"{0}"' -f $loginScript
     Start-Process -FilePath $pwsh -ArgumentList @("-NoProfile", "-File", $quotedLoginScript) | Out-Null
-    Write-Output "Locus authentication window opened. Enter your ACE API key there."
+    Write-Output "Locus authentication window opened. Complete sign-in in your browser."
 }
 
 $command = if ($args.Count -gt 0) { [string]$args[0] } else { "help" }
@@ -117,12 +113,7 @@ try {
                     exit 0
                 }
                 "login" {
-                    if (-not (Test-Option $authArgs "--no-browser")) {
-                        $dashboard = (Get-AceBaseUrl) -replace "/relay$", ""
-                        Start-Process -FilePath ($dashboard + "/console")
-                    }
-                    $forwarded = @($authArgs | Where-Object { $_ -ne "--no-browser" })
-                    $exitCode = Invoke-AceNode -NodeArguments (@("auth-set") + $forwarded) -BaseUrl (Get-AceBaseUrl)
+                    $exitCode = Invoke-AceNode -NodeArguments (@("auth-browser") + $authArgs) -BaseUrl (Get-AceBaseUrl)
                     exit $exitCode
                 }
                 "set-key" {
