@@ -1,142 +1,58 @@
 # Locus Code Search
 
-An authenticated [Agent Skill](https://agentskills.io) for semantic code discovery. It runs a bundled Locus runtime directly, so an MCP server is not required.
+一个需要 ACE 账户认证的 Agent Skill，用于语义代码检索。运行时已随 Skill
+打包，不需要安装 MCP 服务或执行 `npm install`。
 
-The Skill requires the user's own ACE API key for search, index status, and index refresh. It never falls back to unauthenticated retrieval and does not modify an existing Locus MCP installation.
+## 要求
 
-The runtime dependencies are bundled; users do not need to run `npm install` inside the Skill.
+- Windows 10/11 x64
+- PowerShell 7（`pwsh`）
+- Node.js 18 或更高版本
+- ACE 账户
 
-## Quick start
+## 安装与登录
 
-### 1. Install from a terminal (recommended)
-
-The open [`skills`](https://github.com/vercel-labs/skills) CLI supports Codex, Claude Code, Cursor, OpenCode, GitHub Copilot, Windsurf, Gemini CLI, and many other Agent Skills hosts.
-
-Install for the current project:
-
-```powershell
-npx skills add zj0808/locus-skill
-```
-
-Install globally so the Skill is available in every project:
+以下命令适用于 Windows 上全局安装到 Codex：
 
 ```powershell
-npx skills add zj0808/locus-skill -g
-```
-
-The CLI detects installed agents and lets the user choose the target. A fully non-interactive Codex install is:
-
-```powershell
-npx skills add zj0808/locus-skill -g -a codex -s locus-code-search -y
-```
-
-Replace `codex` with another supported agent name when needed. If a host does not detect the newly installed Skill immediately, start a new agent session.
-
-#### Windows: clean reinstall and browser login
-
-Use this complete sequence when replacing an older global Codex installation:
-
-```powershell
-# 1. Remove the old Skill
+# 卸载旧版本（首次安装可跳过）
 npx skills remove -g -a codex -s locus-code-search -y
 
-# 2. Install the latest version from GitHub
+# 从 GitHub 安装最新版
 npx skills add zj0808/locus-skill -g -a codex -s locus-code-search -y
 
-# 3. Enter the installed Skill directory
+# 进入 Skill 目录
 Set-Location "$HOME\.agents\skills\locus-code-search"
 
-# 4. Sign in in the browser
+# 浏览器登录
 .\locus auth login
 
-# 5. Verify the authentication status
+# 查看登录状态
 .\locus auth status
 ```
 
-The `-a codex` and `$HOME\.agents\skills` path are for a global Codex
-installation. For another host, replace `codex` and use the directory printed
-by `npx skills add`. The login stores the account key in Windows Credential
-Manager; it is not written to this repository or a plain-text config file.
-
-#### Codex conversation install
-
-Paste this into Codex:
-
-```text
-Use $skill-installer to install https://github.com/zj0808/locus-skill/tree/main/skills/locus-code-search
-```
-
-This is a Codex-specific convenience. The terminal command above is the portable installation method.
-
-### 2. Sign in to ACE
-
-Ask the installed agent:
-
-> Use locus-code-search to set up authentication.
-
-The Skill opens the ACE website in the default browser. Sign in normally; the browser returns a short-lived authorization code to the Skill on `127.0.0.1`, and the Skill saves the account's API key in Windows Credential Manager. The key is never placed in the browser callback URL, the Skill, or its config file. No PowerShell script command is required in the normal Agent workflow.
-
-### 3. Search
-
-Ask the installed agent:
-
-> Use locus-code-search to find where session tokens are validated in this project.
-
-The host loads the Skill automatically based on its name and description. Installing a Skill does not install an agent host; Codex, Claude Code, Cursor, or another compatible host is still required for automatic invocation.
-
-## Manage the installation
-
-List, update, or remove the Skill from a terminal:
-
-```powershell
-npx skills list -g
-npx skills update locus-code-search -g
-npx skills remove locus-code-search -g
-```
-
-## Requirements
-
-- Windows 10/11 x64
-- PowerShell 7 (`pwsh`)
-- Node.js 18 or newer
-- An ACE account
-
-## Authentication details
-
-For standalone terminal administration, change to the installed Skill directory and use its `locus` command:
+登录后，API Key 保存在 Windows Credential Manager，不会写入 Skill、仓库或
+普通文本配置文件。检查凭据适配器：
 
 ```powershell
 .\locus auth doctor
-.\locus auth status
 ```
 
-Persistent credentials are stored in Windows Credential Manager under service `Ace.Locus.ApiKey` and account `ACE`. The API key is not written to the Skill or its config file. `ACE_API_KEY` provides a temporary override for CI or the current process.
-
-Browser login uses an authorization code with PKCE. The callback listens only on `127.0.0.1` at a random port and stops after login or timeout. For manual key entry, use:
-
-```powershell
-.\locus auth set-key
-```
-
-PowerShell `ConstrainedLanguage` is supported because credential access and hidden key input are handled by the bundled Node native adapter.
-
-Remove the stored key with:
+退出登录并删除本机凭据：
 
 ```powershell
 .\locus auth logout
 ```
 
-## Standalone terminal use
+## 使用
 
-An agent host is optional when calling the bundled command directly:
+安装并登录后，在 Codex 或其他兼容 Agent 中直接提出检索请求，例如：
 
-```powershell
-git clone https://github.com/zj0808/locus-skill.git
-Set-Location .\locus-skill\skills\locus-code-search
-.\locus auth login
+```text
+Use locus-code-search to find where session tokens are validated in this project.
 ```
 
-Then run a search:
+也可以在终端直接运行：
 
 ```powershell
 .\locus search `
@@ -145,8 +61,19 @@ Then run a search:
   --max-turns 2
 ```
 
-The relay defaults to `https://ace.panrun.me/relay`. Configure a different non-secret endpoint with `config set base-url` or the temporary `ACE_BASE_URL` environment variable.
+## 更新与卸载
 
-## License
+```powershell
+npx skills update locus-code-search -g
+npx skills remove -g -a codex -s locus-code-search -y
+```
 
-MIT. Bundled dependency licenses are retained next to their files and summarized in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## 其他 Agent
+
+安装到其他支持 Agent Skills 的宿主时，去掉 `-a codex` 或替换为目标宿主的
+名称，并使用安装命令输出的目录。Skill 只负责调用本地检索运行时，不会替换
+或修改已有的 Locus MCP 安装。
+
+## 许可证
+
+MIT。第三方依赖许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
