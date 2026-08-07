@@ -32,6 +32,32 @@ npx skills add zj0808/locus-skill -g -a codex -s locus-code-search -y
 
 Replace `codex` with another supported agent name when needed. If a host does not detect the newly installed Skill immediately, start a new agent session.
 
+#### Windows: clean reinstall and browser login
+
+Use this complete sequence when replacing an older global Codex installation:
+
+```powershell
+# 1. Remove the old Skill
+npx skills remove -g -a codex -s locus-code-search -y
+
+# 2. Install the latest version from GitHub
+npx skills add zj0808/locus-skill -g -a codex -s locus-code-search -y
+
+# 3. Enter the installed Skill directory
+Set-Location "$HOME\.agents\skills\locus-code-search"
+
+# 4. Sign in in the browser
+.\locus auth login
+
+# 5. Verify the authentication status
+.\locus auth status
+```
+
+The `-a codex` and `$HOME\.agents\skills` path are for a global Codex
+installation. For another host, replace `codex` and use the directory printed
+by `npx skills add`. The login stores the account key in Windows Credential
+Manager; it is not written to this repository or a plain-text config file.
+
 #### Codex conversation install
 
 Paste this into Codex:

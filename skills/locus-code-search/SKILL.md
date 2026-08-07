@@ -46,6 +46,23 @@ Require Windows x64, PowerShell 7, and Node.js 18 or newer. `auth login` uses br
 
 Do not place keys in prompts, source files, config files, command output, or search arguments. Use `--key` only for non-interactive automation when command-line exposure is acceptable; prefer `ACE_API_KEY` for CI.
 
+### Windows terminal setup
+
+For a clean global Codex installation, run this sequence from PowerShell:
+
+```powershell
+npx skills remove -g -a codex -s locus-code-search -y
+npx skills add zj0808/locus-skill -g -a codex -s locus-code-search -y
+Set-Location "$HOME\.agents\skills\locus-code-search"
+.\locus auth login
+.\locus auth status
+```
+
+The first two commands replace the installed Skill from GitHub. `auth login`
+opens browser authorization and saves the signed-in account key in Windows
+Credential Manager. Do not paste the key into the terminal transcript, this
+file, or an agent conversation.
+
 The non-secret relay URL is stored in `%APPDATA%\Ace\config.json`. The default is `https://ace.panrun.me/relay`; `ACE_BASE_URL` overrides it temporarily.
 
 ```powershell
