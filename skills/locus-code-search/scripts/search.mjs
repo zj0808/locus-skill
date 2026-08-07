@@ -2,8 +2,31 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+function importLocalEnv() {
+  const envPath = join(dirname(fileURLToPath(import.meta.url)), "..", ".env");
+  if (!existsSync(envPath)) return;
+  for (const rawLine of readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    let line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    if (line.startsWith("export ")) line = line.slice(7).trim();
+    const match = line.match(/^(LOCUS_BASE_URL|LOCUS_API_KEY|ACE_BASE_URL|ACE_API_KEY)\s*=\s*(.*)$/);
+    if (!match) continue;
+    let [, name, value] = match;
+    value = value.trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (!String(process.env[name] || "").trim()) process.env[name] = value;
+  }
+}
+
+importLocalEnv();
 
 const AUTH_PROBE_PATH = "/exa.api_server_pb.ApiServerService/CheckUserMessageRateLimit";
 const AUTH_TIMEOUT_MS = 10000;
@@ -42,6 +65,8 @@ function readStoredKey() {
 }
 
 function resolveCredential() {
+  const localKey = String(process.env.LOCUS_API_KEY || "").trim();
+  if (localKey) return { key: localKey, source: ".env / LOCUS_API_KEY" };
   const environmentKey = String(process.env.ACE_API_KEY || "").trim();
   if (environmentKey) return { key: environmentKey, source: "ACE_API_KEY" };
   const storedKey = readStoredKey();
@@ -181,7 +206,9 @@ function repeatedValues(args, name) {
 }
 
 function resolveBaseUrl() {
-  const raw = String(process.env.ACE_BASE_URL || "https://ace.panrun.me/relay").trim().replace(/\/+$/, "");
+  const raw = String(
+    process.env.LOCUS_BASE_URL || process.env.ACE_BASE_URL || "https://ace.panrun.me/relay",
+  ).trim().replace(/\/+$/, "");
   let parsed;
   try {
     parsed = new URL(raw);
@@ -516,8 +543,8 @@ async function main() {
   if (command === "auth-logout") {
     const deleted = credentialEntry().deletePassword();
     console.log(deleted ? "Stored ACE key removed." : "No stored ACE key was present.");
-    if (String(process.env.ACE_API_KEY || "").trim()) {
-      console.log("ACE_API_KEY remains active for this process environment.");
+    if (String(process.env.LOCUS_API_KEY || process.env.ACE_API_KEY || "").trim()) {
+      console.log("A configured environment key remains active for this process.");
     }
     return;
   }

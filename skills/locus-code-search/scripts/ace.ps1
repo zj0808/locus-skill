@@ -5,6 +5,37 @@ $script:DefaultBaseUrl = "https://ace.panrun.me/relay"
 $script:NodeEntry = Join-Path $PSScriptRoot "search.mjs"
 $script:ConfigDir = Join-Path ([Environment]::GetFolderPath("ApplicationData")) "Ace"
 $script:ConfigPath = Join-Path $script:ConfigDir "config.json"
+$script:LocalEnvPath = Join-Path (Split-Path -Parent $PSScriptRoot) ".env"
+
+function Import-LocalEnv {
+    if (-not (Test-Path -LiteralPath $script:LocalEnvPath)) {
+        return
+    }
+
+    foreach ($line in Get-Content -LiteralPath $script:LocalEnvPath) {
+        $trimmed = ([string]$line).Trim()
+        if (-not $trimmed -or $trimmed.StartsWith("#")) {
+            continue
+        }
+        if ($trimmed.StartsWith("export ")) {
+            $trimmed = $trimmed.Substring(7).Trim()
+        }
+        if ($trimmed -notmatch '^(LOCUS_BASE_URL|LOCUS_API_KEY|ACE_BASE_URL|ACE_API_KEY)\s*=\s*(.*)$') {
+            continue
+        }
+        $name = $Matches[1]
+        $value = $Matches[2].Trim()
+        if (($value.StartsWith('"') -and $value.EndsWith('"')) -or
+            ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+        if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, "Process"))) {
+            [Environment]::SetEnvironmentVariable($name, $value, "Process")
+        }
+    }
+}
+
+Import-LocalEnv
 
 function Read-AceConfig {
     if (-not (Test-Path -LiteralPath $script:ConfigPath)) {
@@ -33,6 +64,9 @@ function Normalize-BaseUrl([string]$Value) {
 }
 
 function Get-AceBaseUrl {
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCUS_BASE_URL)) {
+        return Normalize-BaseUrl $env:LOCUS_BASE_URL
+    }
     if (-not [string]::IsNullOrWhiteSpace($env:ACE_BASE_URL)) {
         return Normalize-BaseUrl $env:ACE_BASE_URL
     }
@@ -79,6 +113,8 @@ Usage:
   locus config get base-url
 
 Environment:
+  LOCUS_API_KEY   Key from the Skill directory .env file or process environment
+  LOCUS_BASE_URL  Relay URL from the Skill directory .env file or process environment
   ACE_API_KEY   Temporary/CI key override
   ACE_BASE_URL  Temporary relay URL override
 

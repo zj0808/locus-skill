@@ -21,8 +21,19 @@ Never import files under `runtime/` directly. The wrapper enforces authenticatio
 
 The command requires a valid Locus API key. Credential precedence is:
 
-1. The signed-in account stored in Windows Credential Manager.
-2. A temporary environment or command-line override for CI, when supported by the runtime.
+1. `LOCUS_API_KEY` from the Skill directory `.env`.
+2. `LOCUS_API_KEY` from the process environment.
+3. The signed-in account stored in Windows Credential Manager.
+
+For a zero-prompt local bundle, copy `.env.example` to `.env` beside this file:
+
+```dotenv
+LOCUS_BASE_URL=https://HOST/relay
+LOCUS_API_KEY=TOKEN
+```
+
+The bundled command loads this file automatically for every operation. Keep a real
+`.env` out of public Git repositories; distribute it only in a private package.
 
 Use these commands for persistent credentials:
 
@@ -44,7 +55,8 @@ This opens the Locus sign-in page. Tell the user to finish browser sign-in, then
 
 Require Windows x64, PowerShell 7, and Node.js 18 or newer. `auth login` uses browser authorization. `auth set-key` is the manual fallback and securely prompts for a key without opening a browser. `auth doctor` verifies that the bundled native credential adapter can round-trip a temporary value. The Node entry point performs all Credential Manager access, including under PowerShell `ConstrainedLanguage` mode.
 
-Do not place keys in prompts, source files, config files, command output, or search arguments. Use `--key` only for non-interactive automation when command-line exposure is acceptable.
+Do not place keys in prompts, source files, command output, or search arguments. A
+directory `.env` is supported for a private local bundle; never commit a real key.
 
 ### Windows terminal setup
 

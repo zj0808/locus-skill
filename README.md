@@ -8,9 +8,9 @@
 - Windows 10/11 x64
 - PowerShell 7（`pwsh`）
 - Node.js 18 或更高版本
-- Locus 账户
+- Locus API Key
 
-## 安装与登录
+## 安装与配置
 
 以下命令适用于 Windows 上全局安装到 Codex：
 
@@ -24,29 +24,45 @@ npx skills add zj0808/locus-skill -g -a codex -s locus-code-search -y
 # 进入 Skill 目录
 Set-Location "$HOME\.agents\skills\locus-code-search"
 
-# 浏览器登录
+# 可选：目录级零配置
+# 将 skills/locus-code-search/.env.example 复制为 .env，填入服务地址和 Key
+# 配置完成后无需登录，直接使用 .\locus search
+
+# 或使用浏览器授权
 .\locus auth login
 
 # 查看登录状态
 .\locus auth status
 ```
 
-登录后，API Key 保存在 Windows Credential Manager，不会写入 Skill、仓库或
-普通文本配置文件。检查凭据适配器：
+目录级 `.env` 配置示例：
+
+```dotenv
+LOCUS_BASE_URL=https://HOST/relay
+LOCUS_API_KEY=TOKEN
+```
+
+运行时会自动读取 Skill 目录下的 `.env`。环境变量优先于该文件；没有目录配置
+时，仍可使用浏览器授权，Key 会保存到 Windows Credential Manager。
+
+检查配置状态：
 
 ```powershell
 .\locus auth doctor
 ```
 
-退出登录并删除本机凭据：
+退出浏览器授权并删除本机凭据：
 
 ```powershell
 .\locus auth logout
 ```
 
+`.env` 包含真实 Key 时不要提交到 Git。要做零配置分发包，可将填写好的
+`.env` 与 Skill 目录一起私下分发；公开仓库只提供 `.env.example`。
+
 ## 使用
 
-安装并登录后，在 Codex 或其他兼容 Agent 中直接提出检索请求，例如：
+安装并配置后，在 Codex 或其他兼容 Agent 中直接提出检索请求，例如：
 
 ```text
 Use locus-code-search to find where session tokens are validated in this project.
