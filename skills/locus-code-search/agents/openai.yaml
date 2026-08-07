@@ -1,0 +1,4 @@
+interface:
+  display_name: "Locus Code Search"
+  short_description: "Authenticated semantic code search with bundled Locus runtime"
+  default_prompt: "Use $locus-code-search to find the implementation behind this behavior."
