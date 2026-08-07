@@ -1,6 +1,7 @@
 # Locus Code Search
 
-一个需要 ACE 账户认证的 Agent Skill，用于语义代码检索。运行时已随 Skill
+一个需要 Locus 账户登录的 Agent Skill，用于语义代码检索。认证由 ACE 服务
+提供，运行时已随 Skill
 打包，不需要安装 MCP 服务或执行 `npm install`。
 
 ## 要求
@@ -8,7 +9,7 @@
 - Windows 10/11 x64
 - PowerShell 7（`pwsh`）
 - Node.js 18 或更高版本
-- ACE 账户
+- Locus 账户
 
 ## 安装与登录
 
